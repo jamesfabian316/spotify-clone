@@ -157,3 +157,96 @@ create policy "Can only view own subs data." on subscriptions
 drop publication if exists supabase_realtime;
 create publication supabase_realtime
   for table products, prices;
+
+-- Drop Stripe-related tables and types
+DROP TABLE IF EXISTS subscriptions;
+DROP TABLE IF EXISTS prices;
+DROP TABLE IF EXISTS products;
+DROP TYPE IF EXISTS subscription_status;
+DROP TYPE IF EXISTS pricing_type;
+DROP TYPE IF EXISTS pricing_plan_interval;
+
+-- Keep other tables and types
+create table songs (
+  id text primary key,
+  user_id text references auth.users not null,
+  author text not null,
+  title text not null,
+  song_path text not null,
+  image_path text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create table liked_songs (
+  id text primary key,
+  user_id text references auth.users not null,
+  song_id text references songs not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  unique(user_id, song_id)
+);
+
+create table playlists (
+  id text primary key,
+  user_id text references auth.users not null,
+  title text not null,
+  description text,
+  image_path text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create table playlist_songs (
+  id text primary key,
+  playlist_id text references playlists not null,
+  song_id text references songs not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  unique(playlist_id, song_id)
+);
+
+-- Enable RLS
+alter table songs enable row level security;
+alter table liked_songs enable row level security;
+alter table playlists enable row level security;
+alter table playlist_songs enable row level security;
+
+-- Create policies
+create policy "Users can view their own songs" on songs
+  for select using (auth.uid() = user_id);
+
+create policy "Users can insert their own songs" on songs
+  for insert with check (auth.uid() = user_id);
+
+create policy "Users can update their own songs" on songs
+  for update using (auth.uid() = user_id);
+
+create policy "Users can delete their own songs" on songs
+  for delete using (auth.uid() = user_id);
+
+create policy "Users can view their own liked songs" on liked_songs
+  for select using (auth.uid() = user_id);
+
+create policy "Users can insert their own liked songs" on liked_songs
+  for insert with check (auth.uid() = user_id);
+
+create policy "Users can delete their own liked songs" on liked_songs
+  for delete using (auth.uid() = user_id);
+
+create policy "Users can view their own playlists" on playlists
+  for select using (auth.uid() = user_id);
+
+create policy "Users can insert their own playlists" on playlists
+  for insert with check (auth.uid() = user_id);
+
+create policy "Users can update their own playlists" on playlists
+  for update using (auth.uid() = user_id);
+
+create policy "Users can delete their own playlists" on playlists
+  for delete using (auth.uid() = user_id);
+
+create policy "Users can view their own playlist songs" on playlist_songs
+  for select using (auth.uid() = (select user_id from playlists where id = playlist_id));
+
+create policy "Users can insert their own playlist songs" on playlist_songs
+  for insert with check (auth.uid() = (select user_id from playlists where id = playlist_id));
+
+create policy "Users can delete their own playlist songs" on playlist_songs
+  for delete using (auth.uid() = (select user_id from playlists where id = playlist_id));

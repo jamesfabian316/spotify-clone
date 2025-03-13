@@ -1,30 +1,29 @@
-import { Song } from "@/types";
+import { useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { toast } from 'react-hot-toast'
 
-import usePlayer from "./usePlayer";
-import useSubscribeModal from "./useSubscribeModal";
-import useAuthModal from "./useAuthModal";
-import { useUser } from "./useUser";
+import { Song } from '@/types'
+import { useUser } from '@/hooks/useUser'
+import usePlayer from '@/hooks/usePlayer'
 
 const useOnPlay = (songs: Song[]) => {
-  const player = usePlayer();
-  const subscribeModal = useSubscribeModal();
-  const authModal = useAuthModal();
-  const { subscription, user } = useUser();
+	const player = usePlayer()
+	const router = useRouter()
+	const { user } = useUser()
 
-  const onPlay = (id: string) => {
-    if (!user) {
-      return authModal.onOpen();
-    }
+	const onPlay = useCallback(
+		(id: string) => {
+			if (!user) {
+				return toast.error('Please login to play songs')
+			}
 
-    if (!subscription) {
-      return subscribeModal.onOpen();
-    }
+			player.setId(id)
+			player.setIds(songs.map((song) => song.id))
+		},
+		[user, player, songs]
+	)
 
-    player.setId(id);
-    player.setIds(songs.map((song) => song.id));
-  }
+	return onPlay
+}
 
-  return onPlay;
-};
-
-export default useOnPlay;
+export default useOnPlay
